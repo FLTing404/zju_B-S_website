@@ -1,6 +1,6 @@
-# ZJU B-S Website
+# ZJU BS Website
 
-浙江大学 B-S 架构网站项目
+BS 架构网站项目
 
 ## 技术栈
 
@@ -24,4 +24,3 @@ npm run serve
 ```bash
 npm run build
 ```
-
