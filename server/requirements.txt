@@ -1,0 +1,31 @@
+
+# AI图片分类所需的Python依赖
+# 适用于Docker环境
+
+# 深度学习框架
+torch>=2.0.0
+torchvision>=0.15.0
+
+# YOLO物体检测
+ultralytics>=8.0.0
+
+# CLIP模型（用于语义理解）
+git+https://github.com/openai/CLIP.git
+
+# OCR文字识别
+easyocr>=1.7.0
+
+# 图像处理
+opencv-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# HTTP请求（调用豆包API）
+requests>=2.31.0
+
+# 数据处理
+pandas>=2.0.0
+
+# 系统依赖
+pathlib2>=2.3.7
+

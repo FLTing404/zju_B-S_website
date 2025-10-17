@@ -1,0 +1,102 @@
+services:
+  # MySQL 数据库服务
+  mysql:
+    image: mysql:5.7
+    container_name: smartpic-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: photo_manager
+      MYSQL_USER: smartpic
+      MYSQL_PASSWORD: smartpic123
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./server/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - smartpic-network
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --innodb-buffer-pool-size=128M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # 后端服务
+  backend:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: smartpic-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: photo_manager
+      DB_USER: root
+      DB_PASSWORD: 123456
+      JWT_SECRET: smartpic_secret_2025_docker
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE: 10485760
+      # AI相关环境变量
+      PYTHON_PATH: /usr/local/bin/python
+      PYTHONUNBUFFERED: 1
+      # 豆包API配置
+      DOUBAO_API_KEY: f1a9eaa8-93af-4781-95bd-da83f1b4c236
+      DOUBAO_MODEL: doubao-1-5-thinking-pro-250415
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - smartpic-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: smartpic-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - smartpic-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# 数据卷
+volumes:
+  mysql_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+# 网络
+networks:
+  smartpic-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

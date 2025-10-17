@@ -1,0 +1,20 @@
+{
+  "name": "zju_b-s_website",
+  "version": "1.0.0",
+  "description": "浙江大学 BS 体系软件设计大作业 - 图片管理网站",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FLTing404/zju_B-S_website.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/FLTing404/zju_B-S_website/issues"
+  },
+  "homepage": "https://github.com/FLTing404/zju_B-S_website#readme"
+}
