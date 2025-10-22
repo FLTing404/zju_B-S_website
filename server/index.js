@@ -1,8 +1,32 @@
 const express = require('express')
 const cors = require('cors')
 const dotenv = require('dotenv')
+const fs = require('fs')
+const path = require('path')
 
 dotenv.config()
+
+// 确保必要的目录存在
+const ensureDirectories = () => {
+  const directories = [
+    'uploads',
+    'uploads/avatars',
+    'uploads/defaults',
+    'uploads/user_1',
+    'uploads/user_1/thumbnails'
+  ];
+
+  directories.forEach(dir => {
+    const fullPath = path.join(__dirname, dir);
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+      console.log(`✅ 创建目录: ${dir}`);
+    }
+  });
+}
+
+// 创建目录
+ensureDirectories()
 
 const app = express()
 const PORT = process.env.PORT || 3000

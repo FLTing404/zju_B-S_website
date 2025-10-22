@@ -35,6 +35,7 @@ export default {
       localStorage.removeItem('token')
       localStorage.removeItem('username')
       localStorage.removeItem('email')
+      localStorage.removeItem('avatar')
       this.authed = false
     }
   }

@@ -39,8 +39,37 @@
             <!-- 用户信息下拉框 -->
             <div v-if="showUserInfo" class="user-dropdown">
               <div class="user-details">
-                <div class="username">{{ userInfo.username }}</div>
-                <div class="email">{{ userInfo.email }}</div>
+                <!-- 用户头像 -->
+                <div class="avatar-section">
+                  <div class="avatar-container">
+                    <img 
+                      v-if="userInfo.avatar" 
+                      :src="userInfo.avatar.startsWith('/') ? `http://localhost:3000${userInfo.avatar}` : userInfo.avatar" 
+                      :alt="userInfo.username"
+                      class="user-avatar"
+                    />
+                    <div v-else class="default-avatar">
+                      {{ userInfo.username.charAt(0).toUpperCase() }}
+                    </div>
+                    <button @click="triggerAvatarUpload" class="avatar-upload-btn">
+                      <svg viewBox="0 0 24 24" fill="currentColor" class="upload-icon">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <input 
+                    ref="avatarInput" 
+                    type="file" 
+                    accept="image/*" 
+                    @change="handleAvatarUpload"
+                    style="display: none"
+                  />
+                </div>
+                
+                <div class="user-info-text">
+                  <div class="username">{{ userInfo.username }}</div>
+                  <div class="email">{{ userInfo.email }}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -157,8 +186,9 @@ export default {
       error: null,
       categories: [],
       userInfo: {
-        username: '',
-        email: ''
+        username: localStorage.getItem('username') || '',
+        email: localStorage.getItem('email') || '',
+        avatar: localStorage.getItem('avatar') || ''
       },
       showUserInfo: false,
       showSettings: false,
@@ -338,7 +368,59 @@ export default {
       localStorage.removeItem('token')
       localStorage.removeItem('username')
       localStorage.removeItem('email')
+      localStorage.removeItem('avatar')
       this.$emit('logout')
+    },
+    triggerAvatarUpload() {
+      this.$refs.avatarInput.click()
+    },
+    async handleAvatarUpload(event) {
+      const file = event.target.files[0]
+      if (!file) return
+
+      // 验证文件类型
+      if (!file.type.startsWith('image/')) {
+        alert('请选择图片文件')
+        return
+      }
+
+      // 验证文件大小 (最大2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('图片大小不能超过2MB')
+        return
+      }
+
+      try {
+        const formData = new FormData()
+        formData.append('avatar', file)
+
+        const token = localStorage.getItem('token')
+        const response = await fetch(`${API_BASE}/auth/avatar`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          // 确保头像URL格式正确
+          const avatarUrl = data.avatarUrl.startsWith('/') ? `http://localhost:3000${data.avatarUrl}` : data.avatarUrl
+          this.userInfo.avatar = avatarUrl
+          localStorage.setItem('avatar', avatarUrl)
+          alert('头像上传成功！')
+        } else {
+          const error = await response.json()
+          alert(error.error || '头像上传失败')
+        }
+      } catch (error) {
+        console.error('头像上传失败:', error)
+        alert('头像上传失败，请重试')
+      }
+
+      // 清空input
+      event.target.value = ''
     },
     async handleFilesUpload(files) {
       try {
@@ -577,6 +659,71 @@ export default {
 
 .user-details {
   padding: 1rem;
+}
+
+.avatar-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.avatar-container {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+}
+
+.user-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+}
+
+.default-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+  border: 2px solid #e2e8f0;
+}
+
+.avatar-upload-btn {
+  position: absolute;
+  bottom: -0.25rem;
+  right: -0.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #2563eb;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.avatar-upload-btn:hover {
+  background: #1d4ed8;
+}
+
+.upload-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.user-info-text {
+  text-align: center;
 }
 
 .username {

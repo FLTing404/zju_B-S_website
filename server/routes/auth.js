@@ -5,6 +5,42 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 const fs = require('fs').promises;
 const path = require('path');
+const multer = require('multer');
+const auth = require('../middleware/auth');
+
+// 配置 multer 用于头像上传
+const avatarStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '../uploads/avatars');
+    // 确保目录存在
+    if (!require('fs').existsSync(uploadPath)) {
+      require('fs').mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    // 使用时间戳和随机数生成唯一文件名，在路由中会重命名
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 15);
+    const ext = path.extname(file.originalname);
+    cb(null, `temp_avatar_${timestamp}_${randomStr}${ext}`);
+  }
+});
+
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: {
+    fileSize: 2 * 1024 * 1024 // 2MB 限制
+  },
+  fileFilter: function (req, file, cb) {
+    // 只允许图片文件
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('只允许上传图片文件'), false);
+    }
+  }
+});
 
 /**
  * 用户注册接口
@@ -92,7 +128,7 @@ router.post('/login', async (req, res) => {
 
     // 查找用户
     const [users] = await db.query(
-      'SELECT id, username, password, email FROM users WHERE username = ?',
+      'SELECT id, username, password, email, avatar FROM users WHERE username = ?',
       [username]
     );
 
@@ -118,7 +154,7 @@ router.post('/login', async (req, res) => {
     res.json({
       message: '登录成功',
       token,
-      user: { id: user.id, username: user.username, email: user.email }
+      user: { id: user.id, username: user.username, email: user.email, avatar: user.avatar }
     });
   } catch (error) {
     console.error('登录失败:', error);
@@ -236,6 +272,106 @@ async function createUserFolderAndDefaultImages(userId) {
     console.error('创建用户文件夹失败:', error);
   }
 }
+
+/**
+ * 头像上传接口
+ * POST /api/auth/avatar
+ */
+router.post('/avatar', auth, avatarUpload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '请选择要上传的头像文件' });
+    }
+
+    const userId = req.userId;
+    const timestamp = Date.now();
+    const ext = path.extname(req.file.originalname);
+    const newFilename = `avatar_${userId}_${timestamp}${ext}`;
+    
+    // 旧的临时文件路径
+    const tempFilePath = path.join(__dirname, '../uploads/avatars', req.file.filename);
+    // 新的最终文件路径
+    const finalFilePath = path.join(__dirname, '../uploads/avatars', newFilename);
+    
+    // 重命名文件
+    await fs.rename(tempFilePath, finalFilePath);
+    
+    const avatarPath = `/uploads/avatars/${newFilename}`;
+
+    // 获取旧头像路径（用于删除）
+    const [users] = await db.query(
+      'SELECT avatar FROM users WHERE id = ?',
+      [userId]
+    );
+
+    // 更新数据库中的头像路径
+    await db.query(
+      'UPDATE users SET avatar = ? WHERE id = ?',
+      [avatarPath, userId]
+    );
+
+    // 删除旧头像文件（如果存在且不是默认头像）
+    if (users.length > 0 && users[0].avatar && users[0].avatar !== avatarPath) {
+      const oldAvatarPath = path.join(__dirname, '..', users[0].avatar);
+      try {
+        await fs.unlink(oldAvatarPath);
+      } catch (err) {
+        console.log('删除旧头像失败:', err.message);
+      }
+    }
+
+    res.json({
+      message: '头像上传成功',
+      avatarUrl: avatarPath
+    });
+  } catch (error) {
+    console.error('头像上传失败:', error);
+    
+    // 如果发生错误，尝试清理临时文件
+    if (req.file) {
+      const tempFilePath = path.join(__dirname, '../uploads/avatars', req.file.filename);
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (err) {
+        console.log('清理临时文件失败:', err.message);
+      }
+    }
+    
+    res.status(500).json({ error: '头像上传失败，请稍后重试' });
+  }
+});
+
+/**
+ * 获取用户信息接口
+ * GET /api/auth/profile
+ */
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    const [users] = await db.query(
+      'SELECT id, username, email, avatar FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    const user = users[0];
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    console.error('获取用户信息失败:', error);
+    res.status(500).json({ error: '获取用户信息失败' });
+  }
+});
 
 module.exports = router;
 

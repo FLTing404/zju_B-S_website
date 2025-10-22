@@ -32,7 +32,7 @@
         <label class="form-label">用户名</label>
         <input 
           v-model="username" 
-          placeholder="请输入用户名（至少6个字节）" 
+          placeholder="请输入用户名" 
           :class="['form-input', { invalid: username && !validUsername }]"
         />
 
@@ -49,7 +49,7 @@
         <input 
           type="password" 
           v-model="password" 
-          placeholder="至少6个字节" 
+          placeholder="请输入密码" 
           :class="['form-input', { invalid: password && !strongPwd }]"
         />
 
@@ -136,6 +136,7 @@ export default {
           localStorage.setItem('token', data.token)
           localStorage.setItem('username', data.user.username)
           localStorage.setItem('email', data.user.email)
+          localStorage.setItem('avatar', data.user.avatar || '')
           this.$emit('login', data.token)
         }
       } catch (error) {
